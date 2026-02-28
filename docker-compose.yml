@@ -10,5 +10,109 @@ services:
       - "5432:5432"
     volumes:
       - capstone_pgdata:/var/lib/postgresql/data
+
+  airflow-db:
+    image: postgres:16
+    container_name: airflow-postgres
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    volumes:
+      - airflow_pgdata:/var/lib/postgresql/data
+
+  airflow-init:
+    build:
+      context: ./airflow
+      dockerfile: Dockerfile
+    container_name: airflow-init
+    depends_on:
+      - airflow-db
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@airflow-db:5432/airflow
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      _AIRFLOW_WWW_USER_USERNAME: airflow
+      _AIRFLOW_WWW_USER_PASSWORD: airflow
+    user: "${AIRFLOW_UID:-50000}:0"
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+      - ./airflow/logs:/opt/airflow/logs
+      - ./airflow/plugins:/opt/airflow/plugins
+      - ./src:/opt/airflow/src
+      - ./tests:/opt/airflow/tests
+      - ./data:/opt/airflow/data
+      - ./src/transformations/sql:/opt/airflow/src/transformations/sql
+      - ./.env:/opt/airflow/.env
+    command: >
+      bash -c "airflow db migrate &&
+               airflow users create
+               --username $$ _AIRFLOW_WWW_USER_USERNAME
+               --password $$ _AIRFLOW_WWW_USER_PASSWORD
+               --firstname Airflow --lastname Admin
+               --role Admin
+               --email admin@example.com || true"
+
+  airflow-webserver:
+    build:
+      context: ./airflow
+      dockerfile: Dockerfile
+    container_name: airflow-webserver
+    depends_on:
+      - airflow-db
+      - airflow-init
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@airflow-db:5432/airflow
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: capstone_db
+      DB_USER: capstone
+      DB_PASSWORD: capstone
+    user: "${AIRFLOW_UID:-50000}:0"
+    ports:
+      - "8081:8080"
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+      - ./airflow/logs:/opt/airflow/logs
+      - ./airflow/plugins:/opt/airflow/plugins
+      - ./src:/opt/airflow/src
+      - ./tests:/opt/airflow/tests
+      - ./data:/opt/airflow/data
+      - ./src/transformations/sql:/opt/airflow/src/transformations/sql
+      - ./.env:/opt/airflow/.env
+    command: airflow webserver
+
+  airflow-scheduler:
+    build:
+      context: ./airflow
+      dockerfile: Dockerfile
+    container_name: airflow-scheduler
+    depends_on:
+      - airflow-db
+      - airflow-init
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@airflow-db:5432/airflow
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: capstone_db
+      DB_USER: capstone
+      DB_PASSWORD: capstone
+    user: "${AIRFLOW_UID:-50000}:0"
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+      - ./airflow/logs:/opt/airflow/logs
+      - ./airflow/plugins:/opt/airflow/plugins
+      - ./src:/opt/airflow/src
+      - ./tests:/opt/airflow/tests
+      - ./data:/opt/airflow/data
+      - ./src/transformations/sql:/opt/airflow/src/transformations/sql
+      - ./.env:/opt/airflow/.env
+    command: airflow scheduler
+
 volumes:
   capstone_pgdata:
+  airflow_pgdata:
