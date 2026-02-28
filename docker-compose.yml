@@ -11,6 +11,20 @@ services:
     volumes:
       - capstone_pgdata:/var/lib/postgresql/data
 
+  # =========================
+  # PGADMIN (GUI FOR POSTGRES)
+  # =========================
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: capstone-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@local.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
+
   airflow-db:
     image: postgres:16
     container_name: airflow-postgres
@@ -45,11 +59,12 @@ services:
       - ./src/transformations/sql:/opt/airflow/src/transformations/sql
       - ./.env:/opt/airflow/.env
     command: >
-      bash -c "airflow db migrate &&
+      bash -c "airflow db init &&
                airflow users create
-               --username $$ _AIRFLOW_WWW_USER_USERNAME
-               --password $$ _AIRFLOW_WWW_USER_PASSWORD
-               --firstname Airflow --lastname Admin
+               --username ${_AIRFLOW_WWW_USER_USERNAME}
+               --password ${_AIRFLOW_WWW_USER_PASSWORD}
+               --firstname Airflow
+               --lastname Admin
                --role Admin
                --email admin@example.com || true"
 
