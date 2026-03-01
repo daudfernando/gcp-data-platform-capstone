@@ -5,8 +5,9 @@ from datetime import datetime
 with DAG(
     dag_id="fx_daily_pipeline",
     start_date=datetime(2026, 2, 1),
-    schedule="@daily",
+    schedule="@daily"
     catchup=False,
+    max_active_runs=1,
     tags=["capstone", "fx"],
 ) as dag:
 
